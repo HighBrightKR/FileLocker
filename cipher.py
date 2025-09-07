@@ -57,7 +57,7 @@ class Cipher:
             in_file.unlink()
             self.log_add(meta_dict)
     
-    def dec(self, in_file, is_str=False, no_log=False):
+    def dec(self, in_file, is_str=False, no_log=False, out_path=""):
         if is_str:
             salt = in_file[:16]
             iv = in_file[16:32]
@@ -82,11 +82,14 @@ class Cipher:
             meta_size = int.from_bytes(dec_data[:4], "big")
             meta_json = json.loads(dec_data[4:4 + meta_size].decode())
             data = dec_data[4 + meta_size:]
-
-            origin_path = Path(meta_json["file"]).with_suffix(meta_json["suffix"])
+            meta_path = Path(meta_json["file"])
+            if out_path == "" or not out_path:
+                origin_path = meta_path.with_suffix(meta_json["suffix"])
+            else:
+                out_path = Path(out_path)
+                origin_path = out_path / meta_path.name
             with open(origin_path, 'wb') as f:
                 f.write(data)
-
             in_file.unlink()
             if not no_log: self.log_del(meta_json)
 

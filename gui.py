@@ -1,5 +1,4 @@
 import ttkbootstrap as ttk
-from Crypto.Util.RFC1751 import key_to_english
 from ttkbootstrap.constants import *
 from ttkbootstrap import Style
 from cipher import Cipher, Login
@@ -12,6 +11,7 @@ class FileManagerApp(ttk.Window):
         super().__init__(title="파일 관리자", themename="litera")
         self.geometry("900x600")
         self.minsize(600, 400)
+        self.output_path = ""
 
         style = Style()
         style.configure('.', font=('Noto Sans KR', 10))
@@ -22,15 +22,20 @@ class FileManagerApp(ttk.Window):
         top_frame = ttk.Frame(self, padding=(10, 10))
         top_frame.pack(fill=X, side=TOP)
 
-        settings_button = ttk.Button(top_frame, text="설정", command=self.on_settings_click)
+        settings_button = ttk.Menubutton(top_frame, text="설정")
         settings_button.pack(side=LEFT, padx=(0, 5))
+
+        setting_menu = ttk.Menu(settings_button, tearoff=False)
+        setting_menu.add_command(label="비밀번호 변경", command= lambda o='pw': self.on_settings_click(o))
+        setting_menu.add_command(label="출력 폴더 변경", command=lambda o='output': self.on_settings_click(o))
+
+        settings_button.config(menu=setting_menu)
 
         load_button = ttk.Button(top_frame, text="데이터 로드", command=self.on_load_click)
         load_button.pack(side=LEFT, padx=5)
 
         dec_button = ttk.Button(top_frame, text="목록에 없는 파일 복호화", command=self.on_notinlist_dec_click)
         dec_button.pack(side=LEFT, padx=5)
-
 
         self.use_key = ttk.BooleanVar()
         self.use_key_check = ttk.Checkbutton(top_frame, text="키 사용자 지정", variable=self.use_key, command=self.on_usekey_check)
@@ -103,35 +108,68 @@ class FileManagerApp(ttk.Window):
             self.status_label.config(text="파일 목록을 불러오는데 실패했습니다.")
             return False
 
-    def on_settings_click(self):
-        screen = ttk.Toplevel(self.master)
-        screen.title("비밀번호 변경")
-        screen.geometry("400x250")
-        screen.grab_set()
+    def on_settings_click(self, option):
+        if option == "pw":
+            screen = ttk.Toplevel(self.master)
+            screen.title("비밀번호 변경")
+            screen.geometry("400x250")
+            screen.grab_set()
 
-        ttk.Label(screen, text="비밀번호 입력").pack(pady=10)
-        pw1_entry = ttk.Entry(screen, show="*", width=30)
-        pw1_entry.pack()
-        ttk.Label(screen, text="비밀번호 재입력").pack(pady=10)
-        pw2_entry = ttk.Entry(screen, show="*", width=30)
-        pw2_entry.pack()
-        pw_status = ttk.Label(screen, text="비밀번호 변경시 기존 암호화된 파일을 복구할 수 없습니다.", bootstyle=WARNING)
-        pw_status.pack()
+            ttk.Label(screen, text="비밀번호 입력").pack(pady=10)
+            pw1_entry = ttk.Entry(screen, show="*", width=30)
+            pw1_entry.pack()
+            ttk.Label(screen, text="비밀번호 재입력").pack(pady=10)
+            pw2_entry = ttk.Entry(screen, show="*", width=30)
+            pw2_entry.pack()
+            pw_status = ttk.Label(screen, text="비밀번호 변경시 기존 암호화된 파일을 복구할 수 없습니다.", bootstyle=WARNING)
+            pw_status.pack()
 
-        def check_pw():
-            pw1, pw2 = pw1_entry.get(), pw2_entry.get()
-            if not pw1 or not pw2:
-                pw_status.config(text="비밀번호를 입력하세요.")
-            elif pw1 != pw2:
-                pw_status.config(text="비밀번호가 일치하지 않습니다. 입력하세요.")
-            else:
-                l = Login()
-                l.save(pw1)
+            def check_pw():
+                pw1, pw2 = pw1_entry.get(), pw2_entry.get()
+                if not pw1 or not pw2:
+                    pw_status.config(text="비밀번호를 입력하세요.")
+                elif pw1 != pw2:
+                    pw_status.config(text="비밀번호가 일치하지 않습니다. 입력하세요.")
+                else:
+                    l = Login()
+                    l.save(pw1)
+                    screen.destroy()
+                    self.status_label.config(text="비밀번호가 변경되었습니다.")
+                    self.set_pw(pw1)
+
+            ttk.Button(screen, text="확인", command=check_pw, bootstyle="success", width=30).pack(pady=20)
+
+        elif option == "output":
+            screen = ttk.Toplevel(self.master)
+            screen.title("출력 폴더 변경")
+            screen.geometry("400x250")
+            screen.grab_set()
+
+            ttk.Label(screen, text="출력 폴더 설정").pack(pady=10)
+            sel_dir_btn = ttk.Button(screen, text="폴더 선택", bootstyle="info")
+            sel_dir_btn.pack(pady=10)
+            output_label = ttk.Label(screen, text="출력 폴더를 선택하세요.")
+            output_label.pack(pady=10)
+            save_btn = ttk.Button(screen, text="저장", bootstyle="success", width=30)
+            save_btn.pack(pady=10)
+
+            def on_sel_dir_click():
+                output = filedialog.askdirectory(title="출력 폴더 선택", initialdir="./")
+                if output:
+                    output_label.config(text=output)
+
+            def on_save_click():
+                output = output_label.cget("text")
+                if output == "출력 폴더를 선택하세요." or output == "":
+                    self.status_label.config(text="출력 폴더가 선택되지 않았습니다.")
+                else:
+                    self.status_label.config(text=f"출력 폴더가 {output}으로 변경되었습니다.")
+                    self.output_path = output
                 screen.destroy()
-                self.status_label.config(text="비밀번호가 변경되었습니다.")
-                self.set_pw(pw1)
 
-        ttk.Button(screen, text="확인", command=check_pw, bootstyle="success", width=30).pack(pady=20)
+            sel_dir_btn.config(command=on_sel_dir_click)
+            save_btn.config(command=on_save_click)
+
 
     def on_load_click(self):
         log_path = filedialog.askopenfilename(title="파일 선택", filetypes=(("데이터 파일", "*.bin"),))
@@ -156,7 +194,7 @@ class FileManagerApp(ttk.Window):
             item_details = self.tree.item(sel)
             file_path = item_details.get('values')[0] # str임
             self.status_label.config(text=f"'{file_path}' 복호화를 시작합니다.")
-            self.cipher.dec(file_path)
+            self.cipher.dec(file_path, out_path=self.output_path)
             self.load_data()
             self.status_label.config(text=f"'{file_path}' 복호화가 완료되었습니다.")
 
@@ -180,9 +218,9 @@ class FileManagerApp(ttk.Window):
                     self.status_label.config(text=f"키가 입력되지 않았습니다.")
                     return
                 temp_cipher = Cipher(key)
-                temp_cipher.dec(file_path, no_log=True)
+                temp_cipher.dec(file_path, no_log=True, out_path=self.output_path)
             else:
-                self.cipher.dec(file_path, no_log=True)
+                self.cipher.dec(file_path, no_log=True, out_path=self.output_path)
                 self.status_label.config(text=f"'{file_path}' 복호화가 완료되었습니다.")
         except Exception as e:
             self.status_label.config(text=f"복호화 오류: {e}")
