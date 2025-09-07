@@ -1,4 +1,5 @@
 import ttkbootstrap as ttk
+from Crypto.Util.RFC1751 import key_to_english
 from ttkbootstrap.constants import *
 from ttkbootstrap import Style
 from cipher import Cipher, Login
@@ -8,14 +9,14 @@ ttk.localization.initialize_localities = bool
 
 class FileManagerApp(ttk.Window):
     def __init__(self):
-        super().__init__(title="Modern File Manager", themename="litera")
+        super().__init__(title="파일 관리자", themename="litera")
         self.geometry("900x600")
         self.minsize(600, 400)
 
         style = Style()
         style.configure('.', font=('Noto Sans KR', 10))
         style.configure('Treeview.Heading', font=('Noto Sans KR', 10, 'bold'))
-        style.map("Treeview", rowheight=[("!disabled", 20)])
+        style.map('Treeview', rowheight=[("!disabled", 20)])
         style.configure('TButton', font=('Noto Sans KR', 10, 'bold'))
 
         top_frame = ttk.Frame(self, padding=(10, 10))
@@ -30,6 +31,17 @@ class FileManagerApp(ttk.Window):
         dec_button = ttk.Button(top_frame, text="목록에 없는 파일 복호화", command=self.on_notinlist_dec_click)
         dec_button.pack(side=LEFT, padx=5)
 
+
+        self.use_key = ttk.BooleanVar()
+        self.use_key_check = ttk.Checkbutton(top_frame, text="키 사용자 지정", variable=self.use_key, command=self.on_usekey_check)
+        self.use_key_check.pack(side=LEFT, padx=5)
+
+        style.configure('KeyEntry.TEntry')
+        style.map('KeyEntry.TEntry', foreground=[("disabled", "gray")], fieldbackground=[("disabled", "#e0e0e0")])
+        self.key_entry = ttk.Entry(top_frame, style="KeyEntry.TEntry", show="*")
+        self.key_entry.config(state="disabled")
+        self.key_entry.pack(side=LEFT, padx=5)
+
         add_button = ttk.Button(top_frame, text="추가", bootstyle="success", command=self.on_add_click)
         add_button.pack(side=RIGHT, padx=5)
 
@@ -43,7 +55,7 @@ class FileManagerApp(ttk.Window):
         self.tree = ttk.Treeview(table_frame, columns=columns, show="headings", bootstyle="primary")
 
         self.tree.heading("file_path", text="파일 경로")
-        self.tree.heading("suffix", text="확장자")
+        self.tree.heading("suffix", text="원본 확장자")
         self.tree.heading("time", text="시간")
         self.tree.heading("size", text="원본 크기")
         
@@ -71,7 +83,6 @@ class FileManagerApp(ttk.Window):
             state="disabled"
         )
         self.decrypt_button.pack(side=RIGHT)
-
 
 
     def set_pw(self, pw):
@@ -122,7 +133,6 @@ class FileManagerApp(ttk.Window):
 
         ttk.Button(screen, text="확인", command=check_pw, bootstyle="success", width=30).pack(pady=20)
 
-
     def on_load_click(self):
         log_path = filedialog.askopenfilename(title="파일 선택", filetypes=(("데이터 파일", "*.bin"),))
         if not log_path: return
@@ -144,28 +154,44 @@ class FileManagerApp(ttk.Window):
         try:
             sel = self.tree.selection()[0]
             item_details = self.tree.item(sel)
-            file_path = item_details.get('values')[0]
+            file_path = item_details.get('values')[0] # str임
             self.status_label.config(text=f"'{file_path}' 복호화를 시작합니다.")
-            self.cipher.dec(file_path)
-            self.load_data()
+            if self.use_key.get(): # 사용자 키 있으면
+                key = self.key_entry.get()
+                if not key:
+                    self.status_label.config(text=f"키가 입력되지 않았습니다.")
+                    return
+                temp_cipher = Cipher(key)
+                temp_cipher.dec(file_path, no_log=True) # 로깅 제외 - 잠시 고민
+            else:
+                self.cipher.dec(file_path)
+                self.load_data()
             self.status_label.config(text=f"'{file_path}' 복호화가 완료되었습니다.")
 
         except FileNotFoundError:
-            self.cipher.log_del(file_path)
+            self.cipher.log_del(file_path, is_filename=True)
             self.load_data()
             self.status_label.config(text=f"'{file_path}'를 찾을 수 없어 목록에서 삭제했습니다.")
 
         except Exception as e:
             self.status_label.config(text=f"오류: {e}")
 
+
     def on_notinlist_dec_click(self):
         try:
             file_path = filedialog.askopenfilename(title="파일 선택", filetypes=(("암호화된 파일", "*.enc"),))
             if file_path:
                 self.status_label.config(text=f"'{file_path}' 복호화를 시작합니다.")
-                self.cipher.dec(file_path)
+            if self.use_key.get():
+                key = self.key_entry.get()
+                if not key:
+                    self.status_label.config(text=f"키가 입력되지 않았습니다.")
+                    return
+                temp_cipher = Cipher(key)
+                temp_cipher.dec(file_path, no_log=True)
+            else:
+                self.cipher.dec(file_path, no_log=True)
                 self.status_label.config(text=f"'{file_path}' 복호화가 완료되었습니다.")
-
         except Exception as e:
             self.status_label.config(text=f"복호화 오류: {e}")
 
@@ -174,6 +200,12 @@ class FileManagerApp(ttk.Window):
             self.decrypt_button.config(state="normal")
         else:
             self.decrypt_button.config(state="disabled")
+
+    def on_usekey_check(self):
+        if self.use_key.get():
+            self.key_entry.config(state="normal")
+        else:
+            self.key_entry.config(state="disabled")
 
 
 class LoginApp(ttk.Toplevel):

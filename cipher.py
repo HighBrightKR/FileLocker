@@ -103,10 +103,13 @@ class Cipher:
         except Exception as e:
             print(f"로그 추가 - {e}")
 
-    def log_del(self, meta_dict):
+    def log_del(self, meta_dict, is_filename=False):
         try:
             dec_data_dic = self.log_load()
-            dec_data_dic["files"] = [i for i in dec_data_dic["files"] if i.get("file") != meta_dict.get("file")]
+            if is_filename:
+                dec_data_dic["files"] = [i for i in dec_data_dic["files"] if i.get("file") != meta_dict.get("file")]
+            else:
+                dec_data_dic["files"] = [i for i in dec_data_dic["files"] if i.get("file") != meta_dict] # gui에서 meta_dict가 file_path고 str임
             with open('./data.bin', 'wb') as f:
                 f.write(self.enc(json.dumps(dec_data_dic, ensure_ascii=False), True))
         except Exception as e:
