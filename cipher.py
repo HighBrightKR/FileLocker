@@ -3,11 +3,9 @@ from argon2.low_level import hash_secret_raw, Type
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 from Crypto.Cipher import AES
-from Crypto.Util.Padding import pad, unpad
 from pathlib import Path
 from datetime import datetime
 import json
-import shutil
 from os import urandom, path
 
 class Cipher:

@@ -242,6 +242,7 @@ class LoginApp(ttk.Toplevel):
     def __init__(self, parent, on_login_success):  
         super().__init__(parent)  
         self.geometry("400x500")
+        self.title = "인증"
         self.resizable(False, False)
         self.on_login_success = on_login_success
 
