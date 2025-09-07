@@ -156,16 +156,8 @@ class FileManagerApp(ttk.Window):
             item_details = self.tree.item(sel)
             file_path = item_details.get('values')[0] # str임
             self.status_label.config(text=f"'{file_path}' 복호화를 시작합니다.")
-            if self.use_key.get(): # 사용자 키 있으면
-                key = self.key_entry.get()
-                if not key:
-                    self.status_label.config(text=f"키가 입력되지 않았습니다.")
-                    return
-                temp_cipher = Cipher(key)
-                temp_cipher.dec(file_path, no_log=True) # 로깅 제외 - 잠시 고민
-            else:
-                self.cipher.dec(file_path)
-                self.load_data()
+            self.cipher.dec(file_path)
+            self.load_data()
             self.status_label.config(text=f"'{file_path}' 복호화가 완료되었습니다.")
 
         except FileNotFoundError:
